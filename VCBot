@@ -1,0 +1,304 @@
+#include <ESP8266WiFi.h>
+#include "AdafruitIO_WiFi.h"
+#include <BlynkSimpleEsp8266.h>
+//Motor Pins
+#define l1 D5
+#define l2 D6
+#define r1 D8
+#define r2 D7
+//Ultrasonic Sensor Pins
+const int trigPin = 4; //D2
+const int echoPin = 5;  //D1
+long duration;
+int distance;
+int f, b, l, r, a, _f, _b, _l, _r, _s, _d;
+char username[] = "USERNAME";
+char iokey[] = "IOKEY";
+char auth[] = "AUTH";
+char ssid[] = "SSID";
+char pass[] = "PASSWORD";
+AdafruitIO_WiFi Alexa( username, iokey, ssid, pass);
+//To get current value of Virtual Pins(V0 to V4) from Blynk
+BLYNK_WRITE(V0)
+{
+  f = param.asInt();
+}
+BLYNK_WRITE(V1)
+{
+  b = param.asInt();
+}
+BLYNK_WRITE(V2)
+{
+  l = param.asInt();
+}
+BLYNK_WRITE(V3)
+{
+  r = param.asInt();
+}
+BLYNK_WRITE(V4)
+{
+  a = param.asInt();
+}
+//Creating Feed In AdafruitIO
+AdafruitIO_Feed *up = Alexa.feed("forward");
+AdafruitIO_Feed *dw = Alexa.feed("backward");
+AdafruitIO_Feed *le = Alexa.feed("left");
+AdafruitIO_Feed *ri = Alexa.feed("right");
+AdafruitIO_Feed *st = Alexa.feed("key");
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+  Blynk.begin(auth, ssid, pass);
+  pinMode(l1, OUTPUT);
+  pinMode(l2, OUTPUT);
+  pinMode(r1, OUTPUT);
+  pinMode(r2, OUTPUT);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
+  Alexa.connect();
+  up->onMessage(FOR);
+  dw->onMessage(BAC);
+  le->onMessage(LEF);
+  ri->onMessage(RIG);
+  st->onMessage(STO);
+}
+void loop() {
+  // put your main code here, to run repeatedly:
+  Blynk.run();
+  blynk();
+  Alexa.run();
+  alexa();
+}
+void alexa()
+{
+  Distance();
+  int q = 0;
+  if ((_f != 0) && (_f != 1))
+  {
+    q = (_f * 4);
+    while ((_s != 1) && (q != 0) && (distance >= 20))
+    {
+      forward();
+      delay(250);
+      q--;
+    }
+    _f = 0;
+  }
+  if ((_b != 0) && (_b != 1))
+  {
+    q = (_b * 4);
+    while ((_s != 1) && (q != 0) && (distance >= 20))
+    {
+      backward();
+      delay(250);
+      q--;
+    }
+    _b = 0;
+  }
+  if (_f == 1)
+  {
+    q = 40;
+    while ((_s != 1) && (q != 0) && (distance >= 20))
+    {
+      forward();
+      delay(250);
+      q--;
+    }
+    _f = 0;
+  }
+  if (_b == 1)
+  {
+    q = 40;
+    while ((_s != 1) && (q != 0) && (distance >= 20))
+    {
+      backward();
+      delay(250);
+      q--;
+    }
+    _b = 0;
+  }
+  if (_l == 1)
+  {
+    q = 40;
+    left();
+    delay(2000);
+    while ((_s != 1) && (q != 0) && (distance >= 20))
+    {
+      forward();
+      delay(250);
+      q--;
+    }
+    _l = 0;
+  }
+  if (_r == 1)
+  {
+    q = 40;
+    right();
+    delay(2000);
+    while ((_s != 1) && (q != 0) && (distance >= 20))
+    {
+      forward();
+      delay(250);
+      q--;
+    }
+    _r = 0;
+  }
+  if (_s == 2)
+  {
+    self();
+  }
+  if (_s == 1)
+  {
+    Serial.println("Stop");
+    up->save("0");
+    dw->save("0");
+    le->save("0");
+    ri->save("0");
+    st->save("0");
+    _s = 0;
+  }
+}
+void blynk()
+{
+  if (a == 1)
+  {
+    f = 0;
+    l = 0;
+    r = 0;
+    b = 0;
+    self();
+  }
+  if (a != 1)
+  {
+    if ((f == 1) && (l == 0) && (r == 0) && (b == 0))
+      forward();
+    if ((f == 1) && (l == 1) && (r == 0) && (b == 0))
+      forleft();
+    if ((f == 1) && (l == 0) && (r == 1) && (b == 0))
+      forright();
+    if ((b == 1) && (l == 0) && (r == 0) && (f == 0))
+      backward();
+    if ((b == 1) && (l == 1) && (r == 0) && (f == 0))
+      backleft();
+    if ((b == 1) && (l == 0) && (r == 1) && (f == 0))
+      backright();
+    if ((f == 0) && (l == 1) && (r == 0) && (b == 0))
+      left();
+    if ((f == 0) && (l == 0) && (r == 1) && (b == 0))
+      right();
+    if ((f == 0) && (l == 0) && (r == 0) && (b == 0))
+      stoop();
+  }
+}
+void stoop()
+{
+  Serial.println("Stop");
+  digitalWrite(D5, LOW);
+  digitalWrite(D6, LOW);
+  digitalWrite(D7, LOW);
+  digitalWrite(D8, LOW);
+}
+void forward()
+{
+  Serial.println("Forward");
+  digitalWrite(D5, HIGH);
+  digitalWrite(D6, LOW);
+  digitalWrite(D7, LOW);
+  digitalWrite(D8, HIGH);
+}
+void backward()
+{
+  Serial.println("Backward");
+  digitalWrite(D5, LOW);
+  digitalWrite(D6, HIGH);
+  digitalWrite(D7, HIGH);
+  digitalWrite(D8, LOW);
+}
+void right()
+{
+  Serial.println("Right");
+  digitalWrite(D5, LOW);
+  digitalWrite(D6, HIGH);
+  digitalWrite(D7, LOW);
+  digitalWrite(D8, HIGH);
+}
+void left()
+{
+  Serial.println("Left");
+  digitalWrite(D5, HIGH);
+  digitalWrite(D6, LOW);
+  digitalWrite(D7, HIGH);
+  digitalWrite(D8, LOW);
+}
+void forleft()
+{
+  Serial.println("FrontLeft");
+  digitalWrite(D5, HIGH);
+  digitalWrite(D6, LOW);
+  analogWrite(D7, 800);
+  digitalWrite(D8, LOW);
+}
+void forright()
+{
+  Serial.println("FrontRight");
+  digitalWrite(D5, LOW);
+  analogWrite(D6, 800);
+  digitalWrite(D7, LOW);
+  digitalWrite(D8, HIGH);
+}
+void backright()
+{
+  Serial.println("BackRight");
+  digitalWrite(D5, LOW);
+  digitalWrite(D6, HIGH);
+  analogWrite(D7, 800);
+  digitalWrite(D8, LOW);
+}
+void backleft()
+{
+  Serial.println("BackLeft");
+  digitalWrite(D5, LOW);
+  analogWrite(D6, 800);
+  digitalWrite(D7, HIGH);
+  digitalWrite(D8, LOW);
+}
+void Distance()
+{
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  duration = pulseIn(echoPin, HIGH);
+  distance = duration * 0.034 / 2;
+  distance = 50;
+  /*Serial.print("Distance: ");
+    Serial.println(distance);*/
+}
+void self()
+{ //Find distance and move forward if distance > 20cm or turn right ifdistance < 20cm
+  Serial.println("Self");
+  if (distance > 20)
+    backward();
+  if (distance <= 20)
+  {
+    left();
+    delay(3000);
+  }
+}
+void FOR(AdafruitIO_Data *data) {
+  _f = data->toInt();
+}
+void BAC(AdafruitIO_Data *data) {
+  _b = data->toInt();
+}
+void LEF(AdafruitIO_Data *data) {
+  _l = data->toInt();
+}
+void RIG(AdafruitIO_Data *data) {
+  _r = data->toInt();
+}
+void STO(AdafruitIO_Data *data) {
+  _s = data->toInt();
+}
